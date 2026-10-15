@@ -1,3 +1,5 @@
+<p align="center"><img src="images/icon.png" alt="Chore Reminder icon" width="128"></p>
+
 # Chore Reminder for Home Assistant
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=niku85&repository=homeassistant-repo&category=integration)
@@ -35,6 +37,8 @@ dashboard card that counts down to the next time a recurring chore is due.
 
 - Service `chore_reminder.mark_done` (target: a chore sensor).
 - English and German card labels (follows your Home Assistant language).
+- Its own icon (light and dark variants) on the integrations page, shipped in
+  `custom_components/chore_reminder/brand/` (shown from Home Assistant 2026.3).
 
 ## Installation
 

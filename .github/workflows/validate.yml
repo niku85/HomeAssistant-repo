@@ -19,7 +19,8 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Remove once the integration's logo is added to home-assistant/brands.
+          # Icons ship in custom_components/chore_reminder/brand/ (HA 2026.3+)
+          # instead of the home-assistant/brands repository.
           ignore: brands
 
   hassfest:
