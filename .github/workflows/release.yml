@@ -1,0 +1,30 @@
+name: Release
+
+# Publishes a GitHub release (and tag) whenever the version in manifest.json
+# changes on main. To release: bump the version and push to main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/chore_reminder/manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release if this version has none yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(jq -r .version custom_components/chore_reminder/manifest.json)"
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "Chore Reminder $tag" --generate-notes
