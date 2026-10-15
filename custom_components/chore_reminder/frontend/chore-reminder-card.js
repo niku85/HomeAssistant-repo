@@ -12,7 +12,7 @@
  */
 
 const DOMAIN = "chore_reminder";
-const CARD_VERSION = "1.0.1";
+const CARD_VERSION = "1.0.2";
 
 const STRINGS = {
   en: {
@@ -78,9 +78,9 @@ class ChoreReminderCard extends HTMLElement {
   }
 
   setConfig(config) {
-    const entities = config.entities ?? (config.entity ? [config.entity] : null);
+    const entities = config.entities ?? (config.entity ? [config.entity] : []);
     if (!Array.isArray(entities)) {
-      throw new Error("Define 'entities' (a list of chore sensors) or 'entity'.");
+      throw new Error("'entities' must be a list of chore sensors.");
     }
     this._config = {
       ...config,
@@ -292,7 +292,8 @@ class ChoreReminderCard extends HTMLElement {
   }
 }
 
-if (!customElements.get("chore-reminder-card")) {
+const registerCard = () => {
+  if (customElements.get("chore-reminder-card")) return;
   customElements.define("chore-reminder-card", ChoreReminderCard);
   window.customCards = window.customCards || [];
   window.customCards.push({
@@ -304,4 +305,24 @@ if (!customElements.get("chore-reminder-card")) {
   });
   console.info(`%c CHORE-REMINDER-CARD %c v${CARD_VERSION} `,
     "color:#fff;background:#43a047;font-weight:700", "color:#43a047");
+};
+
+// The integration injects this script into the page, so it can run before the
+// Home Assistant app has started. The app replaces window.customElements with
+// its own registry on startup, and anything defined before that is invisible
+// to it ("Configuration error", card missing from the picker). So wait until
+// the app has defined its root element; give up waiting after 30 seconds.
+const appReady = () =>
+  customElements.get("home-assistant") || customElements.get("hc-main");
+
+if (appReady()) {
+  registerCard();
+} else {
+  const started = Date.now();
+  const timer = setInterval(() => {
+    if (appReady() || Date.now() - started > 30000) {
+      clearInterval(timer);
+      registerCard();
+    }
+  }, 50);
 }
