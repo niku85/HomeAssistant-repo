@@ -13,7 +13,7 @@
  */
 
 const DOMAIN = "chore_reminder";
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.2.0";
 
 const STRINGS = {
   en: {
@@ -109,7 +109,7 @@ class ChoreReminderCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 1 + 2 * (this._config?.entities.length ?? 1);
+    return 1 + Math.ceil(1.5 * (this._config?.entities.length ?? 1));
   }
 
   getGridOptions() {
@@ -228,23 +228,26 @@ class ChoreReminderCard extends HTMLElement {
 
     return `
       <div class="chore ${overdue ? "overdue" : ""}" data-entity="${escapeHtml(entityId)}">
-        <div class="header">
-          <div class="name" data-action="more-info">${escapeHtml(name)}</div>
+        <div class="row">
+          <div class="text">
+            <div class="name" data-action="more-info">${escapeHtml(name)}</div>
+            <div class="info">
+              <span class="days">
+                ${overdue ? '<ha-icon class="alert" icon="mdi:alert-circle"></ha-icon>' : ""}
+                <span>${escapeHtml(this._daysText(daysUntil, daysOverdue))}</span>
+              </span>
+              <span class="sep" aria-hidden="true">·</span>
+              <button class="target" data-action="edit-date" title="${t.change_date}"
+                      aria-label="${t.target}: ${escapeHtml(this._formatDate(a.next_due))}. ${t.change_date}">
+                <ha-icon icon="mdi:calendar-edit"></ha-icon>
+                <span>${escapeHtml(this._formatDate(a.next_due))}</span>
+              </button>
+            </div>
+          </div>
           ${armed ? `<span class="confirm-hint">${t.confirm_done}</span>` : ""}
           <button class="done ${armed ? "armed" : ""}" data-action="done" title="${buttonLabel}"
                   aria-label="${buttonLabel}" ${busy ? "disabled" : ""}>
             <ha-icon icon="${icon}" class="${busy ? "spin" : ""}"></ha-icon>
-          </button>
-        </div>
-        <div class="info">
-          <div class="days">
-            ${overdue ? '<ha-icon class="alert" icon="mdi:alert-circle"></ha-icon>' : ""}
-            <span>${escapeHtml(this._daysText(daysUntil, daysOverdue))}</span>
-          </div>
-          <button class="target" data-action="edit-date" title="${t.change_date}"
-                  aria-label="${t.target}: ${escapeHtml(this._formatDate(a.next_due))}. ${t.change_date}">
-            <ha-icon icon="mdi:calendar-edit"></ha-icon>
-            <span>${escapeHtml(this._formatDate(a.next_due))}</span>
           </button>
         </div>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
@@ -305,18 +308,33 @@ class ChoreReminderCard extends HTMLElement {
         width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px);
       }
       .card-header { padding-bottom: 0; }
-      .content { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
-      .chore { display: flex; flex-direction: column; gap: 8px; }
-      .header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+      .chore { display: flex; flex-direction: column; gap: 6px; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
       .name {
-        font-size: 1.2em; font-weight: 500; cursor: pointer;
+        font-size: 1.05em; font-weight: 500; line-height: 1.3; cursor: pointer;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
+      .info {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px;
+        font-size: .9em; font-weight: 400; line-height: 1.4;
+        color: var(--secondary-text-color);
+      }
+      .days, .target { display: inline-flex; align-items: center; gap: 3px; }
+      .overdue .days { color: var(--chore-overdue-color); }
+      .alert { color: var(--chore-overdue-color); --mdc-icon-size: 16px; }
+      .target ha-icon { --mdc-icon-size: 16px; }
+      .target {
+        border: none; background: none; padding: 0 3px; margin: 0 -3px;
+        font: inherit; color: inherit; cursor: pointer; border-radius: 4px;
+      }
+      .target:hover { background: var(--secondary-background-color, rgba(127,127,127,.15)); }
       .done {
         flex: none; display: inline-flex; align-items: center; justify-content: center;
-        width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+        width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
         background: var(--secondary-background-color, rgba(127,127,127,.15));
-        color: var(--primary-text-color);
+        color: var(--primary-text-color); --mdc-icon-size: 20px;
         transition: background .2s, color .2s;
       }
       .done:hover { background: var(--chore-ok-color); color: #fff; }
@@ -324,29 +342,15 @@ class ChoreReminderCard extends HTMLElement {
       .overdue .done { background: var(--chore-overdue-color); color: #fff; }
       .done.armed, .overdue .done.armed { background: var(--chore-ok-color); color: #fff; }
       .confirm-hint {
-        margin-left: auto; font-size: .85em; color: var(--chore-ok-color);
+        flex: none; max-width: 40%; font-size: .8em; color: var(--chore-ok-color);
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .target {
-        border: none; background: none; padding: 2px 4px; margin: -2px -4px;
-        font: inherit; color: inherit; cursor: pointer; border-radius: 6px;
-      }
-      .target:hover { background: var(--secondary-background-color, rgba(127,127,127,.15)); }
-      .info {
-        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-        gap: 4px 12px; color: var(--secondary-text-color);
-      }
-      .days, .target { display: inline-flex; align-items: center; gap: 4px; }
-      .days { font-size: 1.3em; font-weight: 500; color: var(--primary-text-color); }
-      .overdue .days { color: var(--chore-overdue-color); }
-      .alert { color: var(--chore-overdue-color); --mdc-icon-size: 22px; }
-      .target ha-icon { --mdc-icon-size: 18px; }
       .bar {
-        height: 10px; border-radius: 5px; overflow: hidden;
+        height: 6px; border-radius: 3px; overflow: hidden;
         background: var(--divider-color, rgba(127,127,127,.25));
       }
       .fill {
-        height: 100%; border-radius: 5px; background: var(--chore-ok-color);
+        height: 100%; border-radius: 3px; background: var(--chore-ok-color);
         transition: width .4s ease, background .4s ease;
       }
       .overdue .fill { background: var(--chore-overdue-color); }
