@@ -308,12 +308,12 @@ class ChoreReminderCard extends HTMLElement {
         width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px);
       }
       .card-header { padding-bottom: 0; }
-      .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+      .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 20px; }
       .chore { display: flex; flex-direction: column; gap: 6px; }
       .row { display: flex; align-items: center; gap: 8px; }
       .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
       .name {
-        font-size: 1.05em; font-weight: 500; line-height: 1.3; cursor: pointer;
+        font-size: 1.2em; font-weight: 500; line-height: 1.3; cursor: pointer;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
       .info {
@@ -346,11 +346,11 @@ class ChoreReminderCard extends HTMLElement {
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
       .bar {
-        height: 6px; border-radius: 3px; overflow: hidden;
+        height: 8px; border-radius: 4px; overflow: hidden;
         background: var(--divider-color, rgba(127,127,127,.25));
       }
       .fill {
-        height: 100%; border-radius: 3px; background: var(--chore-ok-color);
+        height: 100%; border-radius: 4px; background: var(--chore-ok-color);
         transition: width .4s ease, background .4s ease;
       }
       .overdue .fill { background: var(--chore-overdue-color); }
