@@ -1,0 +1,5 @@
+mark_done:
+  target:
+    entity:
+      integration: chore_reminder
+      domain: sensor

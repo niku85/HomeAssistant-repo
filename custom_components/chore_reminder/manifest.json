@@ -1,0 +1,13 @@
+{
+  "domain": "chore_reminder",
+  "name": "Chore Reminder",
+  "codeowners": ["@niku85"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http"],
+  "documentation": "https://github.com/niku85/homeassistant-repo",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/niku85/homeassistant-repo/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

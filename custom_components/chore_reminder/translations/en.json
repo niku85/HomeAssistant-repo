@@ -1,0 +1,59 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "New chore",
+        "description": "The chore is first due one interval after the start date. Marking it done restarts the countdown from that day.",
+        "data": {
+          "name": "Chore name",
+          "start_date": "Start date",
+          "interval": "Repeat every",
+          "interval_unit": "Unit"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "A chore with this name already exists."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Edit chore schedule",
+        "description": "Changing the start date restarts the countdown from the new date.",
+        "data": {
+          "start_date": "Start date",
+          "interval": "Repeat every",
+          "interval_unit": "Unit"
+        }
+      }
+    }
+  },
+  "selector": {
+    "interval_unit": {
+      "options": {
+        "days": "Days",
+        "weeks": "Weeks",
+        "months": "Months"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "overdue": {
+        "name": "Overdue"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Mark done"
+      }
+    }
+  },
+  "services": {
+    "mark_done": {
+      "name": "Mark done",
+      "description": "Marks a chore as done today and restarts its countdown."
+    }
+  }
+}
