@@ -20,7 +20,7 @@
     "step": {
       "init": {
         "title": "Edit chore schedule",
-        "description": "Changing the start date restarts the countdown from the new date.",
+        "description": "Changing the start date restarts the countdown from the new date. Changing the interval recalculates the next due date from the last completion. To move just the next due date, use the chore's \"Next due date\" entity.",
         "data": {
           "start_date": "Start date",
           "interval": "Repeat every",
@@ -47,6 +47,11 @@
     "button": {
       "mark_done": {
         "name": "Mark done"
+      }
+    },
+    "date": {
+      "next_due": {
+        "name": "Next due date"
       }
     }
   },

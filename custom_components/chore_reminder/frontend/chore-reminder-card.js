@@ -9,10 +9,11 @@
  *   entities:                # chore sensors (sensor.<chore name>)
  *     - sensor.water_plants
  *     - sensor.change_bed_sheets
+ *   confirm: true            # optional, tap the refresh button twice to mark done
  */
 
 const DOMAIN = "chore_reminder";
-const CARD_VERSION = "1.0.2";
+const CARD_VERSION = "1.1.0";
 
 const STRINGS = {
   en: {
@@ -22,6 +23,8 @@ const STRINGS = {
     days_overdue: (n) => (n === 1 ? "1 day overdue" : `${n} days overdue`),
     target: "Target date",
     mark_done: "Mark as done",
+    confirm_done: "Tap again to mark as done",
+    change_date: "Change due date",
     unavailable: "Entity not available",
     no_entities: "No chores selected",
   },
@@ -32,6 +35,8 @@ const STRINGS = {
     days_overdue: (n) => (n === 1 ? "1 Tag überfällig" : `${n} Tage überfällig`),
     target: "Zieldatum",
     mark_done: "Als erledigt markieren",
+    confirm_done: "Zum Bestätigen erneut tippen",
+    change_date: "Fälligkeitsdatum ändern",
     unavailable: "Entität nicht verfügbar",
     no_entities: "Keine Aufgaben ausgewählt",
   },
@@ -61,6 +66,7 @@ class ChoreReminderCard extends HTMLElement {
     return {
       schema: [
         { name: "title", selector: { text: {} } },
+        { name: "confirm", selector: { boolean: {} } },
         {
           name: "entities",
           required: true,
@@ -73,7 +79,11 @@ class ChoreReminderCard extends HTMLElement {
         },
       ],
       computeLabel: (schema) =>
-        ({ title: "Title", entities: "Chores" })[schema.name] ?? schema.name,
+        ({
+          title: "Title",
+          entities: "Chores",
+          confirm: "Ask for a second tap before marking done",
+        })[schema.name] ?? schema.name,
     };
   }
 
@@ -83,10 +93,12 @@ class ChoreReminderCard extends HTMLElement {
       throw new Error("'entities' must be a list of chore sensors.");
     }
     this._config = {
+      confirm: true,
       ...config,
       entities: entities.map((e) => (typeof e === "string" ? e : e.entity)),
     };
     this._busy = new Set();
+    this._armed = undefined;
     this._lastRendered = undefined;
     this._render();
   }
@@ -129,6 +141,42 @@ class ChoreReminderCard extends HTMLElement {
     if (daysUntil === 0) return t.due_today;
     if (daysUntil === 1) return t.due_tomorrow;
     return t.days_left(daysUntil);
+  }
+
+  _rerender() {
+    this._lastRendered = undefined;
+    this._render();
+  }
+
+  // With `confirm` on, the first tap only arms the button; a second tap within
+  // a few seconds marks the chore done. Protects against accidental taps.
+  _onDoneTap(entityId) {
+    if (!this._config.confirm || this._armed === entityId) {
+      this._disarm();
+      this._markDone(entityId);
+      return;
+    }
+    this._disarm();
+    this._armed = entityId;
+    this._armTimer = setTimeout(() => this._disarm(), 4000);
+    this._rerender();
+  }
+
+  _disarm() {
+    clearTimeout(this._armTimer);
+    if (this._armed !== undefined) {
+      this._armed = undefined;
+      this._rerender();
+    }
+  }
+
+  // The chore's editable "Next due date" entity sits on the same device.
+  _nextDueEntity(entityId) {
+    const deviceId = this._hass.entities?.[entityId]?.device_id;
+    if (!deviceId) return undefined;
+    return Object.values(this._hass.entities).find(
+      (e) => e.device_id === deviceId && e.platform === DOMAIN && e.entity_id.startsWith("date.")
+    )?.entity_id;
   }
 
   async _markDone(entityId) {
@@ -174,14 +222,18 @@ class ChoreReminderCard extends HTMLElement {
     const progress = Math.min(100, Math.max(0, Number(a.progress ?? 0)));
     const name = a.chore_name ?? a.friendly_name ?? entityId;
     const busy = this._busy.has(entityId);
+    const armed = this._armed === entityId;
+    const buttonLabel = armed ? t.confirm_done : t.mark_done;
+    const icon = busy ? "mdi:loading" : armed ? "mdi:check" : "mdi:refresh";
 
     return `
       <div class="chore ${overdue ? "overdue" : ""}" data-entity="${escapeHtml(entityId)}">
         <div class="header">
           <div class="name" data-action="more-info">${escapeHtml(name)}</div>
-          <button class="done" data-action="done" title="${t.mark_done}"
-                  aria-label="${t.mark_done}" ${busy ? "disabled" : ""}>
-            <ha-icon icon="${busy ? "mdi:loading" : "mdi:refresh"}" class="${busy ? "spin" : ""}"></ha-icon>
+          ${armed ? `<span class="confirm-hint">${t.confirm_done}</span>` : ""}
+          <button class="done ${armed ? "armed" : ""}" data-action="done" title="${buttonLabel}"
+                  aria-label="${buttonLabel}" ${busy ? "disabled" : ""}>
+            <ha-icon icon="${icon}" class="${busy ? "spin" : ""}"></ha-icon>
           </button>
         </div>
         <div class="info">
@@ -189,10 +241,11 @@ class ChoreReminderCard extends HTMLElement {
             ${overdue ? '<ha-icon class="alert" icon="mdi:alert-circle"></ha-icon>' : ""}
             <span>${escapeHtml(this._daysText(daysUntil, daysOverdue))}</span>
           </div>
-          <div class="target">
-            <ha-icon icon="mdi:calendar-check"></ha-icon>
-            <span title="${t.target}">${escapeHtml(this._formatDate(a.next_due))}</span>
-          </div>
+          <button class="target" data-action="edit-date" title="${t.change_date}"
+                  aria-label="${t.target}: ${escapeHtml(this._formatDate(a.next_due))}. ${t.change_date}">
+            <ha-icon icon="mdi:calendar-edit"></ha-icon>
+            <span>${escapeHtml(this._formatDate(a.next_due))}</span>
+          </button>
         </div>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"
              aria-valuenow="${progress}">
@@ -222,8 +275,10 @@ class ChoreReminderCard extends HTMLElement {
         const choreEl = ev.target.closest("[data-entity]");
         if (!actionEl || !choreEl) return;
         const entityId = choreEl.dataset.entity;
-        if (actionEl.dataset.action === "done") this._markDone(entityId);
-        if (actionEl.dataset.action === "more-info") this._openMoreInfo(entityId);
+        const action = actionEl.dataset.action;
+        if (action === "done") this._onDoneTap(entityId);
+        if (action === "more-info") this._openMoreInfo(entityId);
+        if (action === "edit-date") this._openMoreInfo(this._nextDueEntity(entityId) ?? entityId);
       });
     }
 
@@ -267,6 +322,16 @@ class ChoreReminderCard extends HTMLElement {
       .done:hover { background: var(--chore-ok-color); color: #fff; }
       .done:disabled { cursor: default; opacity: .6; }
       .overdue .done { background: var(--chore-overdue-color); color: #fff; }
+      .done.armed, .overdue .done.armed { background: var(--chore-ok-color); color: #fff; }
+      .confirm-hint {
+        margin-left: auto; font-size: .85em; color: var(--chore-ok-color);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .target {
+        border: none; background: none; padding: 2px 4px; margin: -2px -4px;
+        font: inherit; color: inherit; cursor: pointer; border-radius: 6px;
+      }
+      .target:hover { background: var(--secondary-background-color, rgba(127,127,127,.15)); }
       .info {
         display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
         gap: 4px 12px; color: var(--secondary-text-color);

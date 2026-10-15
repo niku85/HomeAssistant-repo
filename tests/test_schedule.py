@@ -22,7 +22,7 @@ def test_add_interval(start, interval, unit, expected) -> None:
 
 
 def test_status_in_progress() -> None:
-    status = compute_status(date(2026, 1, 1), 10, "days", date(2026, 1, 4))
+    status = compute_status(date(2026, 1, 1), date(2026, 1, 11), date(2026, 1, 4))
     assert status.next_due == date(2026, 1, 11)
     assert status.days_until == 7
     assert status.progress == 30.0
@@ -31,21 +31,29 @@ def test_status_in_progress() -> None:
 
 
 def test_status_due_today_is_not_overdue() -> None:
-    status = compute_status(date(2026, 1, 1), 10, "days", date(2026, 1, 11))
+    status = compute_status(date(2026, 1, 1), date(2026, 1, 11), date(2026, 1, 11))
     assert status.days_until == 0
     assert status.progress == 100.0
     assert not status.overdue
 
 
 def test_status_overdue() -> None:
-    status = compute_status(date(2026, 1, 1), 10, "days", date(2026, 1, 14))
+    status = compute_status(date(2026, 1, 1), date(2026, 1, 11), date(2026, 1, 14))
     assert status.overdue
     assert status.days_overdue == 3
     assert status.progress == 100.0
 
 
 def test_status_future_start() -> None:
-    status = compute_status(date(2026, 2, 1), 7, "days", date(2026, 1, 30))
+    status = compute_status(date(2026, 2, 1), date(2026, 2, 8), date(2026, 1, 30))
     assert status.days_until == 9
     assert status.progress == 0.0
     assert status.days_elapsed == 0
+
+
+def test_status_due_date_before_last_done() -> None:
+    """A hand-set due date earlier than the last completion must not crash."""
+    status = compute_status(date(2026, 1, 10), date(2026, 1, 5), date(2026, 1, 10))
+    assert status.period_days == 1
+    assert status.days_until == -5
+    assert status.overdue

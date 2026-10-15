@@ -15,7 +15,12 @@ from homeassistant.loader import async_get_integration
 from .chore import Chore, ChoreConfigEntry
 from .const import CARD_FILENAME, DOMAIN, FRONTEND_URL_BASE
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.DATE,
+    Platform.SENSOR,
+]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 

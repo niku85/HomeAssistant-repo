@@ -47,9 +47,8 @@ class ChoreStatus:
         return max(0, -self.days_until)
 
 
-def compute_status(last_done: date, interval: int, unit: str, today: date) -> ChoreStatus:
-    """Compute the countdown/progress of a chore that was last done on ``last_done``."""
-    next_due = add_interval(last_done, interval, unit)
+def compute_status(last_done: date, next_due: date, today: date) -> ChoreStatus:
+    """Compute countdown and progress between the last completion and the due date."""
     period_days = max(1, (next_due - last_done).days)
     days_elapsed = (today - last_done).days
     progress = min(100.0, max(0.0, days_elapsed / period_days * 100))

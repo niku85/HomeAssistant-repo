@@ -23,7 +23,7 @@ from .const import (
     DOMAIN,
     STORAGE_VERSION,
 )
-from .schedule import ChoreStatus, compute_status
+from .schedule import ChoreStatus, add_interval, compute_status
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,8 @@ class Chore:
     """A repeating chore backed by a config entry.
 
     The configured start date is the initial "last done" date; the chore is
-    due one interval later. Pressing *mark done* moves "last done" to today.
+    due one interval later. Pressing *mark done* moves "last done" to today and
+    the due date one interval after that. The due date can also be set by hand.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -45,6 +46,7 @@ class Chore:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
         self._last_done: date = self.start_date
+        self._next_due: date = self._default_next_due()
         self._listeners: list[Callable[[], None]] = []
         self._unsub_midnight: CALLBACK_TYPE | None = None
 
@@ -78,6 +80,14 @@ class Chore:
         return self._last_done
 
     @property
+    def next_due(self) -> date:
+        """Return the date the chore is due next."""
+        return self._next_due
+
+    def _default_next_due(self) -> date:
+        return add_interval(self._last_done, self.interval, self.interval_unit)
+
+    @property
     def device_info(self) -> DeviceInfo:
         """Return the device that groups this chore's entities."""
         return DeviceInfo(
@@ -90,21 +100,27 @@ class Chore:
     @property
     def status(self) -> ChoreStatus:
         """Return the current status of the chore."""
-        return compute_status(
-            self._last_done, self.interval, self.interval_unit, dt_util.now().date()
-        )
+        return compute_status(self._last_done, self._next_due, dt_util.now().date())
 
     async def async_load(self) -> None:
-        """Restore the last completion date and start the midnight refresh."""
+        """Restore the stored dates and start the midnight refresh."""
         stored = await self._store.async_load() or {}
-        # If the start date was changed in the options, restart from it.
-        if stored.get(CONF_START_DATE) == self.start_date.isoformat() and (
+        schedule = [self.interval, self.interval_unit]
+        if stored.get(CONF_START_DATE) != self.start_date.isoformat() or not (
             last_done := stored.get("last_done")
         ):
-            self._last_done = date.fromisoformat(last_done)
-        else:
+            # New chore, or the start date was changed in the options.
             self._last_done = self.start_date
-            await self._async_save()
+            self._next_due = self._default_next_due()
+        else:
+            self._last_done = date.fromisoformat(last_done)
+            next_due = stored.get("next_due")
+            # Keep a stored due date unless the interval was changed since.
+            if next_due and stored.get("schedule", schedule) == schedule:
+                self._next_due = date.fromisoformat(next_due)
+            else:
+                self._next_due = self._default_next_due()
+        await self._async_save()
 
         self._unsub_midnight = async_track_time_change(
             self.hass, self._async_day_changed, hour=0, minute=0, second=1
@@ -124,7 +140,15 @@ class Chore:
     async def async_mark_done(self) -> None:
         """Mark the chore as done today, restarting the countdown."""
         self._last_done = dt_util.now().date()
+        self._next_due = self._default_next_due()
         _LOGGER.debug("Chore %s marked done on %s", self.name, self._last_done)
+        await self._async_save()
+        self._notify()
+
+    async def async_set_next_due(self, next_due: date) -> None:
+        """Set the next due date by hand, e.g. to undo an accidental *mark done*."""
+        self._next_due = next_due
+        _LOGGER.debug("Chore %s next due date set to %s", self.name, next_due)
         await self._async_save()
         self._notify()
 
@@ -133,6 +157,8 @@ class Chore:
             {
                 CONF_START_DATE: self.start_date.isoformat(),
                 "last_done": self._last_done.isoformat(),
+                "next_due": self._next_due.isoformat(),
+                "schedule": [self.interval, self.interval_unit],
             }
         )
 

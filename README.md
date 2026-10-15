@@ -26,6 +26,8 @@ dashboard card that counts down to the next time a recurring chore is due.
     **red** once it is in the past and the chore has not been done,
   - a red **(!)** icon with **“x days overdue”** when the chore is late,
   - a **refresh button** to mark the chore done, which restarts the countdown from today.
+    It needs a second tap to confirm, so an accidental tap does nothing.
+  - tap the **target date** to change it, e.g. to undo an accidental *mark done*.
 - The card ships with the integration – no extra resource to install.
 - Entities for automations and notifications:
 
@@ -34,9 +36,10 @@ dashboard card that counts down to the next time a recurring chore is due.
   | `sensor.<chore>` | Days until due (negative when overdue). Attributes: `next_due`, `last_done`, `start_date`, `interval`, `interval_unit`, `progress`, `overdue`, `days_overdue`, … |
   | `binary_sensor.<chore>_overdue` | `on` when the target date has passed |
   | `button.<chore>_mark_done` | Marks the chore as done today |
+  | `date.<chore>_next_due_date` | The next due date – change it to move the target date by hand |
 
 - Service `chore_reminder.mark_done` (target: a chore sensor).
-- English and German card labels (follows your Home Assistant language).
+- English and German (follows your Home Assistant language).
 - Its own icon (light and dark variants) on the integrations page, shipped in
   `custom_components/chore_reminder/brand/` (shown from Home Assistant 2026.3).
 
@@ -71,7 +74,15 @@ Add the integration once per chore. The first target date is
 button entity) sets the last-done date to today, so the next target date is
 *today + interval*. Start date and interval can be changed later via
 **Configure** on the chore; changing the start date restarts the countdown
-from the new date.
+from the new date; changing the interval recalculates the next due date from
+the last completion.
+
+### Changing the next due date
+
+Tap the date on the card (or open the chore's **Next due date** entity) and
+pick a new date. This only moves the target date; the next *mark done* uses
+the interval again. Use it to undo an accidental *mark done* or to shift a
+chore by a few days.
 
 ## Dashboard card
 
@@ -87,6 +98,7 @@ entities:
 ```
 
 `entity: sensor.water_plants` works as well for a single chore.
+Set `confirm: false` to mark chores done with a single tap.
 
 Colors follow your theme (`--success-color` / `--error-color`) and can be
 overridden with `card-mod` via `--chore-ok-color` and `--chore-overdue-color`.

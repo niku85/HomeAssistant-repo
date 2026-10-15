@@ -25,6 +25,7 @@ from custom_components.chore_reminder.const import (
 SENSOR = "sensor.water_plants"
 OVERDUE = "binary_sensor.water_plants_overdue"
 BUTTON = "button.water_plants_mark_done"
+NEXT_DUE = "date.water_plants_next_due_date"
 
 
 @pytest.fixture(autouse=True)
@@ -171,3 +172,90 @@ async def test_card_is_served(hass: HomeAssistant, hass_client, mock_frontend) -
     resp = await client.get("/chore_reminder/chore-reminder-card.js")
     assert resp.status == 200
     assert "chore-reminder-card" in await resp.text()
+
+
+async def test_set_next_due_after_accidental_mark_done(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to("2026-10-05 12:00:00")
+    entry = await _setup(hass)
+    assert hass.states.get(NEXT_DUE).state == "2026-10-11"
+
+    # Accidental press moves the due date to today + interval ...
+    await hass.services.async_call(
+        "button", "press", {"entity_id": BUTTON}, blocking=True
+    )
+    assert hass.states.get(NEXT_DUE).state == "2026-10-15"
+
+    # ... and the date entity puts it back.
+    await hass.services.async_call(
+        "date",
+        "set_value",
+        {"entity_id": NEXT_DUE, "date": "2026-10-11"},
+        blocking=True,
+    )
+    state = hass.states.get(SENSOR)
+    assert state.state == "6"
+    assert state.attributes["next_due"] == "2026-10-11"
+    assert state.attributes["last_done"] == "2026-10-05"
+
+    # The hand-set date survives a reload.
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(NEXT_DUE).state == "2026-10-11"
+
+    # Marking done again uses the interval as usual.
+    await hass.services.async_call(
+        DOMAIN, "mark_done", {"entity_id": SENSOR}, blocking=True
+    )
+    assert hass.states.get(NEXT_DUE).state == "2026-10-15"
+
+
+async def test_interval_change_recalculates_next_due(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to("2026-10-05 12:00:00")
+    entry = await _setup(hass)
+    await hass.services.async_call(
+        "date",
+        "set_value",
+        {"entity_id": NEXT_DUE, "date": "2026-12-24"},
+        blocking=True,
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_START_DATE: "2026-10-01", CONF_INTERVAL: 3, CONF_INTERVAL_UNIT: "weeks"},
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(NEXT_DUE).state == "2026-10-22"
+
+
+async def test_upgrade_from_storage_without_next_due(
+    hass: HomeAssistant, hass_storage, freezer: FrozenDateTimeFactory
+) -> None:
+    """Data saved by 1.0.x (no next_due) keeps its last-done date."""
+    freezer.move_to("2026-10-20 12:00:00")
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Water plants",
+        data={
+            CONF_NAME: "Water plants",
+            CONF_START_DATE: "2026-10-01",
+            CONF_INTERVAL: 10,
+            CONF_INTERVAL_UNIT: "days",
+        },
+    )
+    hass_storage[f"{DOMAIN}.{entry.entry_id}"] = {
+        "version": 1,
+        "key": f"{DOMAIN}.{entry.entry_id}",
+        "data": {CONF_START_DATE: "2026-10-01", "last_done": "2026-10-15"},
+    }
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(SENSOR)
+    assert state.attributes["last_done"] == "2026-10-15"
+    assert state.attributes["next_due"] == "2026-10-25"

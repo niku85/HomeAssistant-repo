@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Neue Aufgabe",
+        "description": "Die Aufgabe ist erstmals ein Intervall nach dem Startdatum fällig. Als erledigt markieren startet den Countdown ab diesem Tag neu.",
+        "data": {
+          "name": "Name der Aufgabe",
+          "start_date": "Startdatum",
+          "interval": "Wiederholen alle",
+          "interval_unit": "Einheit"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Eine Aufgabe mit diesem Namen existiert bereits."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zeitplan bearbeiten",
+        "description": "Ein neues Startdatum startet den Countdown ab diesem Datum neu. Ein neues Intervall berechnet das nächste Fälligkeitsdatum ab der letzten Erledigung neu. Um nur das nächste Fälligkeitsdatum zu verschieben, nutze die Entität „Nächstes Fälligkeitsdatum“.",
+        "data": {
+          "start_date": "Startdatum",
+          "interval": "Wiederholen alle",
+          "interval_unit": "Einheit"
+        }
+      }
+    }
+  },
+  "selector": {
+    "interval_unit": {
+      "options": {
+        "days": "Tage",
+        "weeks": "Wochen",
+        "months": "Monate"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "overdue": {
+        "name": "Überfällig"
+      }
+    },
+    "button": {
+      "mark_done": {
+        "name": "Als erledigt markieren"
+      }
+    },
+    "date": {
+      "next_due": {
+        "name": "Nächstes Fälligkeitsdatum"
+      }
+    }
+  },
+  "services": {
+    "mark_done": {
+      "name": "Als erledigt markieren",
+      "description": "Markiert eine Aufgabe als heute erledigt und startet den Countdown neu."
+    }
+  }
+}
