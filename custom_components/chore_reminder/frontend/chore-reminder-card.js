@@ -10,10 +10,11 @@
  *     - sensor.water_plants
  *     - sensor.change_bed_sheets
  *   confirm: true            # optional, tap the refresh button twice to mark done
+ *   sort: next_due           # optional, order by next due date (overdue first)
  */
 
 const DOMAIN = "chore_reminder";
-const CARD_VERSION = "1.2.1";
+const CARD_VERSION = "1.3.0";
 
 const STRINGS = {
   en: {
@@ -68,6 +69,18 @@ class ChoreReminderCard extends HTMLElement {
         { name: "title", selector: { text: {} } },
         { name: "confirm", selector: { boolean: {} } },
         {
+          name: "sort",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "none", label: "As listed" },
+                { value: "next_due", label: "Next due first" },
+              ],
+            },
+          },
+        },
+        {
           name: "entities",
           required: true,
           selector: {
@@ -83,6 +96,7 @@ class ChoreReminderCard extends HTMLElement {
           title: "Title",
           entities: "Chores",
           confirm: "Ask for a second tap before marking done",
+          sort: "Order",
         })[schema.name] ?? schema.name,
     };
   }
@@ -141,6 +155,22 @@ class ChoreReminderCard extends HTMLElement {
     if (daysUntil === 0) return t.due_today;
     if (daysUntil === 1) return t.due_tomorrow;
     return t.days_left(daysUntil);
+  }
+
+  // Entities in display order: as listed, or by next due date with `sort: next_due`
+  // (most overdue first; unavailable chores last, in their listed order).
+  _sortedEntities() {
+    const entities = this._config.entities;
+    if (this._config.sort !== "next_due") return entities;
+    const due = (id) => {
+      const s = this._hass.states[id];
+      const t = s ? Date.parse(s.attributes.next_due) : NaN;
+      return Number.isNaN(t) ? Infinity : t;
+    };
+    return entities
+      .map((id, index) => ({ id, index, due: due(id) }))
+      .sort((a, b) => a.due - b.due || a.index - b.index)
+      .map((e) => e.id);
   }
 
   _rerender() {
@@ -263,7 +293,7 @@ class ChoreReminderCard extends HTMLElement {
     // Only re-render when one of our entities changed.
     const signature = JSON.stringify([
       this._hass.locale?.language,
-      ...this._config.entities.map((id) => {
+      ...this._sortedEntities().map((id) => {
         const s = this._hass.states[id];
         return s ? [s.state, s.attributes.next_due, s.attributes.progress, s.attributes.chore_name] : null;
       }),
@@ -289,7 +319,7 @@ class ChoreReminderCard extends HTMLElement {
       ? `<h1 class="card-header">${escapeHtml(this._config.title)}</h1>`
       : "";
     const body = this._config.entities.length
-      ? this._config.entities.map((id) => this._renderChore(id)).join("")
+      ? this._sortedEntities().map((id) => this._renderChore(id)).join("")
       : `<div class="chore missing">${this._t.no_entities}</div>`;
 
     this.shadowRoot.innerHTML = `

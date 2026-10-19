@@ -99,6 +99,8 @@ entities:
 
 `entity: sensor.water_plants` works as well for a single chore.
 Set `confirm: false` to mark chores done with a single tap.
+Set `sort: next_due` to order the chores by next due date, most overdue
+first (default: as listed).
 
 Colors follow your theme (`--success-color` / `--error-color`) and can be
 overridden with `card-mod` via `--chore-ok-color` and `--chore-overdue-color`.
